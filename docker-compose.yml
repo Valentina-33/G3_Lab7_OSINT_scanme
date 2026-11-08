@@ -1,0 +1,30 @@
+services:
+  n8n:
+    build: .
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      - GENERIC_TIMEZONE=America/Bogota
+      - TZ=America/Bogota
+      - N8N_SECURE_COOKIE=false
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - N8N_RUNNERS_ENABLED=true
+      - NODES_EXCLUDE=[]
+      - N8N_ENABLE_EXECUTE_COMMAND=true
+      - N8N_RESTRICT_FILE_ACCESS_TO=/data;/project
+
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./screenshots:/data
+      - ./:/project
+  
+  screenshots:
+    build:
+      context: ./screenshot-service
+    container_name: screenshots
+    restart: unless-stopped
+
+volumes:
+  n8n_data:

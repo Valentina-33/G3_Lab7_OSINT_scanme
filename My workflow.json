@@ -1,0 +1,765 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Lab07 OSINT Pipeline",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "target"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        0,
+        0
+      ],
+      "id": "b3795d29-6013-41ae-8ae2-687fbe0fe250",
+      "name": "On form submission",
+      "webhookId": "eb0121c7-a089-4adf-a402-c191355abe29"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "c45e7fc5-4ef5-4c76-9705-fc16e692314b",
+              "leftValue": "={{$json.target}}",
+              "rightValue": "^(\\d{1,3}\\.){3}\\d{1,3}$",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        224,
+        0
+      ],
+      "id": "91e81228-3ede-4042-9f04-00426cf5389f",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "url": "=https://dns.google/resolve?name={{$json.target}}&type=A",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        416,
+        96
+      ],
+      "id": "b2c6804b-2f82-4cb4-9d2c-39b36bf8a0d7",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f1c183a2-edd8-4992-8e6e-24390e2a883f",
+              "name": "domain",
+              "value": "={{$json.Question[0].name.replace(/\\.$/, '')}}",
+              "type": "string"
+            },
+            {
+              "id": "f0927dc6-edb8-4812-a86f-39333c5484db",
+              "name": "ip",
+              "value": "={{$json.Answer[0].data}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        640,
+        96
+      ],
+      "id": "3b05532b-8b4b-4366-a03d-b801a813ad59",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ip = $input.item.json.target;\nconst reversed = ip.split('.').reverse().join('.') + '.in-addr.arpa';\nreturn { json: { target: ip, ptrQuery: reversed } };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        -96
+      ],
+      "id": "18e22b28-538d-4991-af05-559ac5dba6c3",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "url": "=https://dns.google/resolve?name={{$json.ptrQuery}}&type=PTR",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        672,
+        -96
+      ],
+      "id": "15d0ab08-6a38-434c-b097-c7a6344cfceb",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "73b9a535-c001-4975-9578-2fd15a0cef17",
+              "name": "domain",
+              "value": "={{$json.Answer[0].data.replace(/\\.$/, '')}}",
+              "type": "string"
+            },
+            {
+              "id": "65f23907-c922-472f-9ed9-0c1a5db1dcd0",
+              "name": "ip",
+              "value": "={{$('Code in JavaScript').item.json.target}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        896,
+        -96
+      ],
+      "id": "6ea72b4d-4437-41a3-9829-e52392deae92",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.hackertarget.com/hostsearch/?q={{$json.domain}}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1168,
+        112
+      ],
+      "id": "952b772b-9767-47ee-8ac4-535b8d871175",
+      "name": "hackertarget",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nlet all = [];\n\nconst isValidHost = (h) => /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i.test(h);\n\nfor (const item of items) {\n  if (item.json.name_value) {\n    item.json.name_value.split('\\n').forEach(d => {\n      const h = d.trim().toLowerCase();\n      if (isValidHost(h)) all.push(h);\n    });\n  } else if (typeof item.json.data === 'string') {\n    item.json.data.split('\\n').forEach(line => {\n      const host = line.split(',')[0].trim().toLowerCase();\n      if (isValidHost(host)) all.push(host);\n    });\n  }\n}\n\nconst unique = [...new Set(all)];\n\nif (unique.length === 0) {\n  const target = $('On form submission').item.json.target;\n  unique.push(target.toLowerCase());\n}\n\nreturn unique.map(h => ({ json: { subdomain: h } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1648,
+        -48
+      ],
+      "id": "4abde7ff-e8fe-47f9-8ec0-ef54385fbed4",
+      "name": "Unificar subdominios"
+    },
+    {
+      "parameters": {
+        "url": "=https://crt.sh/?q=%25.{{$json.domain}}&output=json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1168,
+        -80
+      ],
+      "id": "d11fffd4-a548-414c-b2bd-fba0b8f78a57",
+      "name": "crt.sh",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1440,
+        16
+      ],
+      "id": "97189b47-8671-4f9f-a715-f7f194046ce4",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "url": "=http://{{$json.subdomain}}",
+        "options": {
+          "allowUnauthorizedCerts": false,
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1872,
+        16
+      ],
+      "id": "1dbf1b48-7142-4d0c-b320-cc00a94cbf64",
+      "name": "Check Host",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const originals = $('Unificar subdominios').all();\nconst responses = $input.all();\n\nreturn responses\n  .map((item, i) => {\n    const subdomain = originals[i]?.json?.subdomain || 'desconocido';\n    const statusCode = item.json.statusCode;\n    const body = item.json.data || '';\n    const headers = item.json.headers || {};\n    let title = '';\n    const match = body.match(/<title[^>]*>([^<]*)<\\/title>/i);\n    if (match) title = match[1].trim();\n    return {\n      json: {\n        host: subdomain,\n        statusCode: statusCode || 0,\n        title,\n        vivo: !!statusCode && statusCode < 400,\n        body,\n        server: headers.server || ''\n      }\n    };\n  })\n  .filter(item => item.json.vivo);"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2096,
+        16
+      ],
+      "id": "6f4ab366-7d4d-46f8-b7ea-5deecaf46ee8",
+      "name": "Filtrar vivos"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  const body = item.json.body || '';\n  const server = item.json.server || 'desconocido';\n\n  let cms = 'No identificado (posible sitio estático o personalizado)';\n  if (/wp-content|wp-includes/i.test(body)) cms = 'WordPress';\n  else if (/Drupal\\.settings/i.test(body)) cms = 'Drupal';\n  else if (/Joomla/i.test(body)) cms = 'Joomla';\n\n  let analytics = [];\n  if (/google-analytics\\.com|gtag\\(/i.test(body)) analytics.push('Google Analytics');\n  if (/googletagmanager\\.com/i.test(body)) analytics.push('Google Tag Manager');\n  if (!analytics.length) analytics.push('No detectado');\n\n  return {\n    json: {\n      host: item.json.host,\n      servidor_web: server,\n      cms_framework: cms,\n      analitica: analytics.join(', '),\n      hosting_cdn: 'No se detectaron cabeceras de CDN conocidas (Cloudflare, Fastly, etc.)'\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        -528
+      ],
+      "id": "5a4dd9c8-68b9-4e5f-b631-dc35a6177574",
+      "name": "Fingerprint tecnologico"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  const body = item.json.body || '';\n  const host = item.json.host;\n  const regex = /href=\"([^\"]+\\.(?:pdf|docx?|xlsx?))\"/gi;\n  const matches = [...body.matchAll(regex)].map(m => m[1]);\n  const absolute = matches.map(url => {\n    if (url.startsWith('http')) return url;\n    if (url.startsWith('/')) return `http://${host}${url}`;\n    return `http://${host}/${url}`;\n  });\n  return { json: { host, archivos_encontrados: absolute, total: absolute.length } };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        -304
+      ],
+      "id": "f1cb23c1-6331-4c63-85cf-b29a79e282a1",
+      "name": "Archivos publicos"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || '';\nconst host = $input.first().json.host;\nconst regex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/g;\nconst found = [...new Set((body.match(regex) || []).map(e => e.toLowerCase()))];\nconst domainEmails = found.filter(e => e.endsWith('@' + host));\n\nreturn domainEmails.map(email => ({ json: { host, email } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        -96
+      ],
+      "id": "efdd2384-b6b7-4995-82a6-71eb9ae920fa",
+      "name": "Harvest correos"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.xposedornot.com/v1/check-email/{{$json.email}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2512,
+        -96
+      ],
+      "id": "077ba289-dda5-41de-9716-2e3b92a9b1c8",
+      "name": "Check Brecha",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://observatory-api.mdn.mozilla.net/api/v2/scan?host={{$json.host}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2320,
+        112
+      ],
+      "id": "846dd71f-0d46-476f-a495-938d61193dc4",
+      "name": "Mozilla Observatory"
+    },
+    {
+      "parameters": {
+        "command": "=nmap -sV -T4 --top-ports 20 {{$json.host}}"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2320,
+        320
+      ],
+      "id": "0fcbc4ed-a406-408c-92ea-2fe5ee8b3b1e",
+      "name": "Escaneo de puertos"
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $input.first().json.stdout || '';\nconst host = $('Filtrar vivos').item.json.host;\nconst regex = /^(\\d+)\\/tcp\\s+open\\s+(\\S+)\\s*(.*)$/gm;\nlet match;\nconst puertos = [];\nwhile ((match = regex.exec(output)) !== null) {\n  puertos.push({ puerto: match[1], servicio: match[2], version: match[3].trim() || 'no detectada' });\n}\nreturn [{ json: { host, puertos_abiertos: puertos, total: puertos.length } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2544,
+        320
+      ],
+      "id": "0c5e82d6-1232-4f1b-bdbe-e37c1933f621",
+      "name": "Tabla de puertos"
+    },
+    {
+      "parameters": {
+        "url": "=http://screenshots:5000/capture?url=http://{{$json.host}}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2320,
+        528
+      ],
+      "id": "5fe47187-1b42-4974-aaab-636270734a92",
+      "name": "Tomar captura",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/data/{{$json.host}}_{{$now.toFormat('yyyyLLdd_HHmm')}}.png",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        2544,
+        528
+      ],
+      "id": "62299f1b-d947-4461-ba73-0e7f0484cde8",
+      "name": "Read/Write Files from Disk"
+    },
+    {
+      "parameters": {
+        "numberInputs": 6
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2976,
+        -16
+      ],
+      "id": "217604f9-9143-4134-85e9-5d118c6d6c7f",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nlet subdominios = [];\nlet fingerprint = null;\nlet archivos = null;\nlet correos = [];\nlet mozilla = null;\nlet puertos = null;\n\nfor (const item of items) {\n  const j = item.json;\n  if (j.subdomain !== undefined) subdominios.push(j.subdomain);\n  else if (j.cms_framework !== undefined) fingerprint = j;\n  else if (j.archivos_encontrados !== undefined) archivos = j;\n  else if (j.email !== undefined) correos.push(j.email);\n  else if (j.grade !== undefined) mozilla = j;\n  else if (j.puertos_abiertos !== undefined) puertos = j;\n}\n\nconst host = fingerprint?.host || puertos?.host || archivos?.host || 'scanme.nmap.org';\nconst fecha = new Date().toISOString();\n\nconst recomendaciones = [];\nif (mozilla && mozilla.tests_failed > 0) {\n  recomendaciones.push(`Revisar e implementar las cabeceras de seguridad HTTP faltantes (${mozilla.tests_failed} de ${mozilla.tests_quantity} pruebas fallidas según Mozilla Observatory, calificación ${mozilla.grade}).`);\n}\nif (puertos && puertos.puertos_abiertos.some(p => p.servicio === 'ssh')) {\n  recomendaciones.push('Restringir el acceso SSH solo a IPs autorizadas o usar autenticación por llave.');\n}\nif (recomendaciones.length === 0) {\n  recomendaciones.push('No se identificaron recomendaciones críticas adicionales con la información recolectada.');\n}\n\nconst html = `<!DOCTYPE html>\n<html lang=\"es\">\n<head><meta charset=\"UTF-8\"><title>Informe de Reconocimiento OSINT</title>\n<style>\nbody { font-family: Arial, sans-serif; margin: 40px; color: #222; }\nh1 { background: #2A0D45; color: white; padding: 15px; }\nh2 { border-bottom: 2px solid #2A0D45; margin-top: 30px; }\ntable { border-collapse: collapse; width: 100%; margin: 10px 0; }\ntd, th { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }\n.confidencial { color: red; font-weight: bold; }\n</style></head>\n<body>\n<h1>INFORME DE RECONOCIMIENTO OSINT <span class=\"confidencial\">— CONFIDENCIAL</span></h1>\n\n<h2>I. Resumen Ejecutivo</h2>\n<p>Se evaluó el objetivo <strong>${host}</strong> el ${fecha}. Se encontraron ${subdominios.length} subdominio(s), ${puertos ? puertos.total : 0} puerto(s) abierto(s), ${correos.length} correo(s) publicado(s), ${archivos ? archivos.total : 0} documento(s) público(s) expuesto(s), y una calificación de ${mozilla ? mozilla.grade : 'N/D'} (${mozilla ? mozilla.score : 'N/D'}/100) en cabeceras de seguridad según Mozilla Observatory.</p>\n\n<h2>II. Objetivo, Alcance y Metodología</h2>\n<p>Dominio/IP evaluado: ${host}<br>Fecha: ${fecha}<br>Módulos ejecutados: resolución, subdominios, hosts vivos, tecnologías, puertos, correos/brechas, archivos públicos, cabeceras de seguridad (Mozilla Observatory), capturas de pantalla.<br>Limitaciones: el objetivo es un único host de pruebas sin estructura de subdominios adicional; no se realizó banner grabbing avanzado en el escaneo de puertos.</p>\n\n<h2>III. Superficie de Ataque Encontrada</h2>\n<h3>3.1 Subdominios y hosts vivos</h3>\n<p>Subdominios encontrados: ${subdominios.join(', ') || 'ninguno'}</p>\n\n<h3>3.2 Puertos y servicios expuestos</h3>\n<table><tr><th>Puerto</th><th>Servicio</th><th>Versión</th></tr>\n${puertos ? puertos.puertos_abiertos.map(p => `<tr><td>${p.puerto}</td><td>${p.servicio}</td><td>${p.version}</td></tr>`).join('') : '<tr><td colspan=\"3\">Sin datos</td></tr>'}\n</table>\n\n<h3>3.3 Correos encontrados y estado de brechas</h3>\n<p>${correos.length ? correos.join(', ') : 'No se encontraron correos publicados en el dominio objetivo.'}</p>\n\n<h3>3.4 Documentos públicos indexados</h3>\n<p>${archivos && archivos.total ? archivos.archivos_encontrados.join(', ') : 'No se encontraron documentos públicos expuestos.'}</p>\n\n<h2>IV. Postura de Seguridad</h2>\n<h3>4.1 Calificación de cabeceras HTTP</h3>\n<p>Mozilla Observatory: ${mozilla ? `${mozilla.grade} (${mozilla.score}/100) — ${mozilla.tests_passed}/${mozilla.tests_quantity} pruebas superadas` : 'N/D'}</p>\n<p>Detalle completo: <a href=\"${mozilla ? mozilla.details_url : '#'}\">${mozilla ? mozilla.details_url : 'N/D'}</a></p>\n\n<h3>4.2 Tecnologías identificadas</h3>\n<p>Servidor web: ${fingerprint?.servidor_web || 'N/D'}<br>CMS/Framework: ${fingerprint?.cms_framework || 'N/D'}<br>Analítica: ${fingerprint?.analitica || 'N/D'}<br>Hosting/CDN: ${fingerprint?.hosting_cdn || 'N/D'}</p>\n\n<h2>V. Recomendaciones</h2>\n<ul>${recomendaciones.map(r => `<li>${r}</li>`).join('')}</ul>\n\n</body></html>`;\n\nreturn [{ json: { html } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3216,
+        48
+      ],
+      "id": "ea614579-88e0-43b9-8628-289dc25dbf7b",
+      "name": "Armar reporte"
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $input.first().json.html;\nreturn [{\n  json: {},\n  binary: {\n    data: {\n      data: Buffer.from(html).toString('base64'),\n      mimeType: 'text/html',\n      fileName: 'reporte.html'\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3440,
+        48
+      ],
+      "id": "da6b92e8-2567-4f1b-ae34-9f0f7688e151",
+      "name": "Preparar binario"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "/project/reporte.html",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        3664,
+        48
+      ],
+      "id": "e4800eb3-07c9-454e-a446-b1158b5fe76e",
+      "name": "Read/Write Files from Disk1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "hackertarget",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "crt.sh",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "hackertarget",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "crt.sh",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "hackertarget": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "crt.sh": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Unificar subdominios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unificar subdominios": {
+      "main": [
+        [
+          {
+            "node": "Check Host",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Host": {
+      "main": [
+        [
+          {
+            "node": "Filtrar vivos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar vivos": {
+      "main": [
+        [
+          {
+            "node": "Fingerprint tecnologico",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Archivos publicos",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Harvest correos",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Mozilla Observatory",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Escaneo de puertos",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Tomar captura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Harvest correos": {
+      "main": [
+        [
+          {
+            "node": "Check Brecha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escaneo de puertos": {
+      "main": [
+        [
+          {
+            "node": "Tabla de puertos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tomar captura": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fingerprint tecnologico": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Archivos publicos": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Mozilla Observatory": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "Tabla de puertos": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 5
+          }
+        ]
+      ]
+    },
+    "Check Brecha": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Armar reporte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar reporte": {
+      "main": [
+        [
+          {
+            "node": "Preparar binario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar binario": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "1406780f-549c-407e-aa5a-4dc36160bd6e",
+  "meta": {
+    "instanceId": "8c65017c0045a3b9650e5d4651adffec10ae4d9f266d31db146f7f91e493fbb0"
+  },
+  "nodeGroups": [],
+  "id": "TEorHwyRUlLHU3Xf",
+  "tags": []
+}

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><title>Informe de Reconocimiento OSINT</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 40px; color: #222; }
+h1 { background: #2A0D45; color: white; padding: 15px; }
+h2 { border-bottom: 2px solid #2A0D45; margin-top: 30px; }
+table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+td, th { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+.confidencial { color: red; font-weight: bold; }
+</style></head>
+<body>
+<h1>INFORME DE RECONOCIMIENTO OSINT <span class="confidencial">— CONFIDENCIAL</span></h1>
+
+<h2>I. Resumen Ejecutivo</h2>
+<p>Se evaluó el objetivo <strong>scanme.nmap.org</strong> el 2026-11-08T02:54:17.315Z. Se encontraron 1 subdominio(s), 2 puerto(s) abierto(s), 0 correo(s) publicado(s), 0 documento(s) público(s) expuesto(s), y una calificación de F (10/100) en cabeceras de seguridad según Mozilla Observatory.</p>
+
+<h2>II. Objetivo, Alcance y Metodología</h2>
+<p>Dominio/IP evaluado: scanme.nmap.org<br>Fecha: 2026-11-08T02:54:17.315Z<br>Módulos ejecutados: resolución, subdominios, hosts vivos, tecnologías, puertos, correos/brechas, archivos públicos, cabeceras de seguridad (Mozilla Observatory), capturas de pantalla.<br>Limitaciones: el objetivo es un único host de pruebas sin estructura de subdominios adicional; no se realizó banner grabbing avanzado en el escaneo de puertos.</p>
+
+<h2>III. Superficie de Ataque Encontrada</h2>
+<h3>3.1 Subdominios y hosts vivos</h3>
+<p>Subdominios encontrados: scanme.nmap.org</p>
+
+<h3>3.2 Puertos y servicios expuestos</h3>
+<table><tr><th>Puerto</th><th>Servicio</th><th>Versión</th></tr>
+<tr><td>22</td><td>ssh</td><td>OpenSSH 6.6.1p1 Ubuntu 2ubuntu2.13 (Ubuntu Linux; protocol 2.0)</td></tr><tr><td>80</td><td>http</td><td>Apache httpd 2.4.7 ((Ubuntu))</td></tr>
+</table>
+
+<h3>3.3 Correos encontrados y estado de brechas</h3>
+<p>No se encontraron correos publicados en el dominio objetivo.</p>
+
+<h3>3.4 Documentos públicos indexados</h3>
+<p>No se encontraron documentos públicos expuestos.</p>
+
+<h2>IV. Postura de Seguridad</h2>
+<h3>4.1 Calificación de cabeceras HTTP</h3>
+<p>Mozilla Observatory: F (10/100) — 7/12 pruebas superadas</p>
+<p>Detalle completo: <a href="https://developer.mozilla.org/en-US/observatory/analyze?host=scanme.nmap.org">https://developer.mozilla.org/en-US/observatory/analyze?host=scanme.nmap.org</a></p>
+
+<h3>4.2 Tecnologías identificadas</h3>
+<p>Servidor web: Apache/2.4.7 (Ubuntu)<br>CMS/Framework: No identificado (posible sitio estático o personalizado)<br>Analítica: Google Analytics<br>Hosting/CDN: No se detectaron cabeceras de CDN conocidas (Cloudflare, Fastly, etc.)</p>
+
+<h2>V. Recomendaciones</h2>
+<ul><li>Revisar e implementar las cabeceras de seguridad HTTP faltantes (5 de 12 pruebas fallidas según Mozilla Observatory, calificación F).</li><li>Restringir el acceso SSH solo a IPs autorizadas o usar autenticación por llave.</li></ul>
+
+</body></html>

@@ -7,7 +7,8 @@ Pipeline de reconocimiento OSINT (pasivo y activo) totalmente automatizado en **
 - **Instructor:** Santiago Naranjo Melo
 - **Grupo:** G3
 - **Objetivo auditado:** `scanme.nmap.org` (host público que el proyecto Nmap habilita para pruebas)
-
+## Documento: 
+https://pruebacorreoescuelaingeduco-my.sharepoint.com/:w:/g/personal/keyla_serna-i_mail_escuelaing_edu_co/IQDsbNpkImJKR5E0CTaSbndMAeEUprUzVfxHzZfzdL_ftOk?e=3fHPTA
 ## Equipo
 
 - Keyla Yunuette Serna Illescas
